@@ -4,6 +4,15 @@
 
 Alt-tab instantly, move across monitors and keep your desktop workflow intact. Ideal for older games, poorly optimized apps, or anyone who prefers fast, keyboard-driven controls. Zero setup, zero clutter.
 
+## Quick start
+
+Install Borderless Toggle with [Scoop](https://scoop.sh):
+
+```powershell
+scoop bucket add confetti https://github.com/starise/Scoop-Confetti
+scoop install borderless-toggle
+```
+
 ## How to build
 
 Requirements:
