@@ -1,0 +1,9 @@
+# Build tools
+.cache/
+.tools/
+build/
+dist/
+icons/
+
+# Node
+node_modules/

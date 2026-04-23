@@ -1,0 +1,23 @@
+{
+  "name": "borderless-toggle",
+  "author": "Andrea Brandi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "setup": "node scripts/setup.mjs",
+    "clean": "node scripts/clean.mjs",
+    "compile": "node scripts/compile.mjs",
+    "icons": "node scripts/icons.mjs",
+    "zip": "node scripts/zip.mjs",
+    "build": "pnpm run clean && pnpm run icons && pnpm run compile && pnpm run zip",
+    "release": "node scripts/release.mjs"
+  },
+  "devDependencies": {
+    "icon-gen": "^5.0.0",
+    "prettier": "3.8.3",
+    "sharp": "^0.34.5",
+    "yazl": "^3.3.1"
+  }
+}
