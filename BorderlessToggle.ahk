@@ -76,14 +76,27 @@ ToggleBorderless(*) {
   if !hwnd
     return
 
+  if borderlessStates.Has(hwnd) {
+    if RestoreWindow(hwnd, borderlessStates[hwnd])
+      borderlessStates.Delete(hwnd)
+    return
+  }
+
+  state := CaptureWindowState(hwnd)
+  if !IsObject(state)
+    return
+
+  if ApplyBorderlessWindow(hwnd, state) {
+    borderlessStates[hwnd] := state
+  }
+}
+
+CaptureWindowState(hwnd) {
   winTitle := "ahk_id " hwnd
 
-  if borderlessStates.Has(hwnd) {
-    RestoreWindow(hwnd, borderlessStates[hwnd])
-    borderlessStates.Delete(hwnd)
-  } else {
+  try {
     WinGetPos(&x, &y, &w, &h, winTitle)
-    borderlessStates[hwnd] := {
+    return {
       x: x,
       y: y,
       w: w,
@@ -91,42 +104,73 @@ ToggleBorderless(*) {
       style: WinGetStyle(winTitle),
       minMax: WinGetMinMax(winTitle)
     }
+  } catch as e {
+    NotifyWindowError("Could not read window state.", e)
+  }
 
+  return 0
+}
+
+ApplyBorderlessWindow(hwnd, state) {
+  winTitle := "ahk_id " hwnd
+
+  try {
     bounds := GetWindowMonitorBounds(hwnd)
     WinSetStyle("-0xC40000", winTitle)
     WinMove(bounds.x, bounds.y, bounds.w, bounds.h, winTitle)
+    return true
+  } catch as e {
+    RestoreWindow(hwnd, state, false)
+    NotifyWindowError("Could not apply borderless mode.", e)
   }
+
+  return false
+}
+
+NotifyWindowError(message, error) {
+  global APP_NAME
+
+  try TrayTip(message "`n" error.Message, APP_NAME)
 }
 
 RestoreAll(*) {
   global borderlessStates
   for hwnd, state in borderlessStates.Clone() {
-    if WinExist("ahk_id " hwnd) {
-      RestoreWindow(hwnd, state)
+    if WinExist("ahk_id " hwnd) && !RestoreWindow(hwnd, state) {
+      continue
     }
     borderlessStates.Delete(hwnd)
   }
 }
 
-RestoreWindow(hwnd, state) {
+RestoreWindow(hwnd, state, showError := true) {
   winTitle := "ahk_id " hwnd
 
-  if state.minMax = 1
-    try WinRestore(winTitle)
+  try {
+    if state.minMax = 1
+      WinRestore(winTitle)
 
-  WinSetStyle(Format("0x{:X}", state.style), winTitle)
-  WinMove(state.x, state.y, state.w, state.h, winTitle)
+    WinSetStyle(Format("0x{:X}", state.style), winTitle)
+    WinMove(state.x, state.y, state.w, state.h, winTitle)
 
-  if state.minMax = 1
-    WinMaximize(winTitle)
+    if state.minMax = 1
+      WinMaximize(winTitle)
+
+    return true
+  } catch as e {
+    if showError
+      NotifyWindowError("Could not restore window.", e)
+  }
+
+  return false
 }
 
 GetWindowMonitorBounds(hwnd) {
-  WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
-  centerX := x + (w // 2)
-  centerY := y + (h // 2)
-
   try {
+    WinGetPos(&x, &y, &w, &h, "ahk_id " hwnd)
+    centerX := x + (w // 2)
+    centerY := y + (h // 2)
+
     monitorCount := MonitorGetCount()
     Loop monitorCount {
       MonitorGet(A_Index, &left, &top, &right, &bottom)
