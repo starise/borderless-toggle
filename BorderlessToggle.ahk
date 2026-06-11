@@ -76,15 +76,15 @@ UpdateTray()
 ; BORDERLESS LOGIC
 ; ══════════════════════════════════════════════════════════════════════
 
-RegisterHotkey(hk) {
-  if hk = ""
+RegisterHotkey(hotkeyName) {
+  if hotkeyName = ""
     return false
 
   try {
-    Hotkey(hk, ToggleBorderless, "On")
+    Hotkey(hotkeyName, ToggleBorderless, "On")
     return true
   } catch as e {
-    MsgBox("Could not register shortcut '" hk "'`n" e.Message,
+    MsgBox("Could not register shortcut '" hotkeyName "'`n" e.Message,
       APP_NAME " – Error", "Icon! T5")
   }
 
@@ -123,13 +123,13 @@ ReadSavedHotkey() {
     return DEFAULT_HOTKEY
 }
 
-WriteSavedHotkey(hk) {
+WriteSavedHotkey(hotkeyName) {
   global APPDATA_SETTINGS_DIR, APPDATA_SETTINGS_FILE, SETTINGS_FILE
 
   if SETTINGS_FILE = APPDATA_SETTINGS_FILE
     try DirCreate(APPDATA_SETTINGS_DIR)
 
-  IniWrite(hk, SETTINGS_FILE, "Settings", "Hotkey")
+  IniWrite(hotkeyName, SETTINGS_FILE, "Settings", "Hotkey")
 }
 
 ToggleBorderless(*) {
@@ -184,18 +184,18 @@ IsSupportedTargetWindow(hwnd) {
 }
 
 CaptureWindowState(hwnd) {
-  winTitle := "ahk_id " hwnd
+  windowSelector := "ahk_id " hwnd
 
   try {
-    WinGetPos(&x, &y, &w, &h, winTitle)
+    WinGetPos(&x, &y, &w, &h, windowSelector)
     return {
       x: x,
       y: y,
       w: w,
       h: h,
-      style: WinGetStyle(winTitle),
-      exStyle: WinGetExStyle(winTitle),
-      minMax: WinGetMinMax(winTitle),
+      style: WinGetStyle(windowSelector),
+      exStyle: WinGetExStyle(windowSelector),
+      minMax: WinGetMinMax(windowSelector),
       identity: GetWindowIdentity(hwnd)
     }
   } catch as e {
@@ -206,13 +206,13 @@ CaptureWindowState(hwnd) {
 }
 
 GetWindowIdentity(hwnd) {
-  winTitle := "ahk_id " hwnd
+  windowSelector := "ahk_id " hwnd
 
   try {
     return {
-      pid: WinGetPID(winTitle),
-      processName: WinGetProcessName(winTitle),
-      class: WinGetClass(winTitle)
+      pid: WinGetPID(windowSelector),
+      processName: WinGetProcessName(windowSelector),
+      class: WinGetClass(windowSelector)
     }
   }
 
@@ -238,14 +238,14 @@ ApplyBorderlessWindow(hwnd, state) {
   ; Remove caption/thick-frame and extended edge styles.
   static BORDERLESS_STYLE_MASK := "-0xC40000"
   static BORDERLESS_EX_STYLE_MASK := "-0x20301"
-  winTitle := "ahk_id " hwnd
+  windowSelector := "ahk_id " hwnd
 
   try {
     bounds := GetWindowMonitorBounds(hwnd)
-    WinSetStyle(BORDERLESS_STYLE_MASK, winTitle)
-    WinSetExStyle(BORDERLESS_EX_STYLE_MASK, winTitle)
+    WinSetStyle(BORDERLESS_STYLE_MASK, windowSelector)
+    WinSetExStyle(BORDERLESS_EX_STYLE_MASK, windowSelector)
     RefreshWindowFrame(hwnd)
-    WinMove(bounds.x, bounds.y, bounds.w, bounds.h, winTitle)
+    WinMove(bounds.x, bounds.y, bounds.w, bounds.h, windowSelector)
     return true
   } catch as e {
     RestoreWindow(hwnd, state, false)
@@ -294,19 +294,19 @@ CleanupWindowDestroyHook(*) {
 }
 
 RestoreWindow(hwnd, state, showError := true) {
-  winTitle := "ahk_id " hwnd
+  windowSelector := "ahk_id " hwnd
 
   try {
     if state.minMax = 1
-      WinRestore(winTitle)
+      WinRestore(windowSelector)
 
-    WinSetStyle(Format("0x{:X}", state.style), winTitle)
-    WinSetExStyle(Format("0x{:X}", state.exStyle), winTitle)
+    WinSetStyle(Format("0x{:X}", state.style), windowSelector)
+    WinSetExStyle(Format("0x{:X}", state.exStyle), windowSelector)
     RefreshWindowFrame(hwnd)
-    WinMove(state.x, state.y, state.w, state.h, winTitle)
+    WinMove(state.x, state.y, state.w, state.h, windowSelector)
 
     if state.minMax = 1
-      WinMaximize(winTitle)
+      WinMaximize(windowSelector)
 
     return true
   } catch as e {
@@ -640,16 +640,16 @@ OpenOptions(*) {
   ; ── Save & close ──────────────────────────────────────────────────
   SaveAndClose(*) {
     global currentHotkey, isHotkeyRegistered, isSuspended
-    newHk := hkCtrl.Value
-    oldHk := currentHotkey
-    oldRegistered := isHotkeyRegistered
-    oldSuspended := isSuspended
+    newHotkey := hkCtrl.Value
+    previousHotkey := currentHotkey
+    wasHotkeyRegistered := isHotkeyRegistered
+    wasSuspended := isSuspended
 
-    if oldHk != "" && oldRegistered
-      try Hotkey(oldHk, "Off")
+    if previousHotkey != "" && wasHotkeyRegistered
+      try Hotkey(previousHotkey, "Off")
 
     try {
-      if newHk = "" {
+      if newHotkey = "" {
         WriteSavedHotkey("")
         currentHotkey := ""
         isHotkeyRegistered := false
@@ -660,23 +660,23 @@ OpenOptions(*) {
         return
       }
 
-      Hotkey(newHk, ToggleBorderless, isSuspended ? "Off" : "On")
-      WriteSavedHotkey(newHk)
-      currentHotkey := newHk
+      Hotkey(newHotkey, ToggleBorderless, isSuspended ? "Off" : "On")
+      WriteSavedHotkey(newHotkey)
+      currentHotkey := newHotkey
       isHotkeyRegistered := true
       UpdateTray()
       DestroyOptions()
     } catch as e {
       ; Restore the old shortcut if the new one cannot be registered or saved.
-      if newHk != ""
-        try Hotkey(newHk, "Off")
+      if newHotkey != ""
+        try Hotkey(newHotkey, "Off")
 
-      currentHotkey := oldHk
-      isHotkeyRegistered := oldRegistered
-      isSuspended := oldSuspended
+      currentHotkey := previousHotkey
+      isHotkeyRegistered := wasHotkeyRegistered
+      isSuspended := wasSuspended
 
-      if oldHk != "" && oldRegistered
-        try Hotkey(oldHk, ToggleBorderless, oldSuspended ? "Off" : "On")
+      if previousHotkey != "" && wasHotkeyRegistered
+        try Hotkey(previousHotkey, ToggleBorderless, wasSuspended ? "Off" : "On")
 
       UpdateSuspendMenu()
       UpdateTray()
