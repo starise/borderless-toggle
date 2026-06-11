@@ -368,9 +368,14 @@ SetTrayStateIcon(state) {
       "Inactive|Dark", -212,
       "Suspended|Dark", -212
     )
-    TraySetIcon(A_ScriptFullPath, iconIds[state "|" theme])
+    try TraySetIcon(A_ScriptFullPath, iconIds[state "|" theme])
   } else {
-    TraySetIcon(ICONS_DIR "\BorderlessToggle-" state "-" theme ".ico")
+    if state = "Suspended"
+      state := "Inactive"
+
+    iconPath := ICONS_DIR "\BorderlessToggle-" state "-" theme ".ico"
+    if FileExist(iconPath)
+      try TraySetIcon(iconPath)
   }
 }
 
