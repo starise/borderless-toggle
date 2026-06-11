@@ -58,20 +58,12 @@ const source = fs
     `;@Ahk2Exe-AddResource ${icons.inactiveLight}, 202`,
   )
   .replace(
-    /^;@Ahk2Exe-AddResource .+BorderlessToggle-Suspended-Light\.ico, 203$/m,
-    `;@Ahk2Exe-AddResource ${icons.suspendedLight}, 203`,
-  )
-  .replace(
     /^;@Ahk2Exe-AddResource .+BorderlessToggle-Active-Dark\.ico, 211$/m,
     `;@Ahk2Exe-AddResource ${icons.activeDark}, 211`,
   )
   .replace(
     /^;@Ahk2Exe-AddResource .+BorderlessToggle-Inactive-Dark\.ico, 212$/m,
     `;@Ahk2Exe-AddResource ${icons.inactiveDark}, 212`,
-  )
-  .replace(
-    /^;@Ahk2Exe-AddResource .+BorderlessToggle-Suspended-Dark\.ico, 213$/m,
-    `;@Ahk2Exe-AddResource ${icons.suspendedDark}, 213`,
   );
 
 fs.writeFileSync(generatedAhk, source);
