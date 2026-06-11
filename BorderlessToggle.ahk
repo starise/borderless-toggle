@@ -12,8 +12,10 @@
 ;@Ahk2Exe-SetMainIcon .\icons\BorderlessToggle-App.ico
 ;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Active-Light.ico, 201
 ;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Inactive-Light.ico, 202
+;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Suspended-Light.ico, 203
 ;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Active-Dark.ico, 211
 ;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Inactive-Dark.ico, 212
+;@Ahk2Exe-AddResource .\icons\BorderlessToggle-Suspended-Dark.ico, 213
 
 #Requires AutoHotkey v2.0
 #SingleInstance Force
@@ -425,16 +427,13 @@ SetTrayStateIcon(state) {
     iconIds := Map(
       "Active|Light", -201,
       "Inactive|Light", -202,
-      "Suspended|Light", -202,
+      "Suspended|Light", -203,
       "Active|Dark", -211,
       "Inactive|Dark", -212,
-      "Suspended|Dark", -212
+      "Suspended|Dark", -213
     )
     try TraySetIcon(A_ScriptFullPath, iconIds[state "|" theme])
   } else {
-    if state = "Suspended"
-      state := "Inactive"
-
     iconPath := ICONS_DIR "\BorderlessToggle-" state "-" theme ".ico"
     if FileExist(iconPath)
       try TraySetIcon(iconPath)

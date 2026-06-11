@@ -35,8 +35,10 @@ const icons = {
   main: path.resolve("icons", "BorderlessToggle-App.ico"),
   activeLight: path.resolve("icons", "BorderlessToggle-Active-Light.ico"),
   inactiveLight: path.resolve("icons", "BorderlessToggle-Inactive-Light.ico"),
+  suspendedLight: path.resolve("icons", "BorderlessToggle-Suspended-Light.ico"),
   activeDark: path.resolve("icons", "BorderlessToggle-Active-Dark.ico"),
   inactiveDark: path.resolve("icons", "BorderlessToggle-Inactive-Dark.ico"),
+  suspendedDark: path.resolve("icons", "BorderlessToggle-Suspended-Dark.ico"),
 };
 
 for (const icon of Object.values(icons)) {
@@ -58,12 +60,20 @@ const source = fs
     `;@Ahk2Exe-AddResource ${icons.inactiveLight}, 202`,
   )
   .replace(
+    /^;@Ahk2Exe-AddResource .+BorderlessToggle-Suspended-Light\.ico, 203$/m,
+    `;@Ahk2Exe-AddResource ${icons.suspendedLight}, 203`,
+  )
+  .replace(
     /^;@Ahk2Exe-AddResource .+BorderlessToggle-Active-Dark\.ico, 211$/m,
     `;@Ahk2Exe-AddResource ${icons.activeDark}, 211`,
   )
   .replace(
     /^;@Ahk2Exe-AddResource .+BorderlessToggle-Inactive-Dark\.ico, 212$/m,
     `;@Ahk2Exe-AddResource ${icons.inactiveDark}, 212`,
+  )
+  .replace(
+    /^;@Ahk2Exe-AddResource .+BorderlessToggle-Suspended-Dark\.ico, 213$/m,
+    `;@Ahk2Exe-AddResource ${icons.suspendedDark}, 213`,
   );
 
 fs.writeFileSync(generatedAhk, source);
