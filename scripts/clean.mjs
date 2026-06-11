@@ -4,6 +4,7 @@ import path from "path";
 const buildDir = path.resolve("build");
 const cacheDir = path.resolve(".cache");
 const distDir = path.resolve("dist");
+const iconsDir = path.resolve("icons");
 
 function remove(target) {
   try {
@@ -14,3 +15,4 @@ function remove(target) {
 remove(buildDir);
 remove(cacheDir);
 remove(distDir);
+remove(iconsDir);
