@@ -37,6 +37,10 @@ global borderlessStates := Map()
 global currentTheme := GetWindowsTheme()
 global optionsGui := 0
 global optionsControls := Map()
+global windowDestroyCallback := CallbackCreate(HandleWindowDestroyed, "", 7)
+global windowDestroyHook := DllCall("user32\SetWinEventHook",
+  "uint", 0x8001, "uint", 0x8001, "ptr", 0, "ptr", windowDestroyCallback,
+  "uint", 0, "uint", 0, "uint", 0, "ptr")
 
 ; ── Tray menu ─────────────────────────────────────────────────────────
 global AppMenu := A_TrayMenu
@@ -53,6 +57,7 @@ AppMenu.ClickCount := 1
 
 ; ── Startup ───────────────────────────────────────────────────────────
 OnExit(RestoreAll)
+OnExit(CleanupWindowDestroyHook)
 OnMessage(0x001A, WM_SETTINGCHANGE)
 RegisterHotkey(currentHotkey)
 UpdateTray()
@@ -77,9 +82,13 @@ ToggleBorderless(*) {
     return
 
   if borderlessStates.Has(hwnd) {
-    if RestoreWindow(hwnd, borderlessStates[hwnd])
+    if !IsTrackedWindow(hwnd, borderlessStates[hwnd]) {
       borderlessStates.Delete(hwnd)
-    return
+    } else {
+      if RestoreWindow(hwnd, borderlessStates[hwnd])
+        borderlessStates.Delete(hwnd)
+      return
+    }
   }
 
   state := CaptureWindowState(hwnd)
@@ -102,13 +111,42 @@ CaptureWindowState(hwnd) {
       w: w,
       h: h,
       style: WinGetStyle(winTitle),
-      minMax: WinGetMinMax(winTitle)
+      minMax: WinGetMinMax(winTitle),
+      identity: GetWindowIdentity(hwnd)
     }
   } catch as e {
     NotifyWindowError("Could not read window state.", e)
   }
 
   return 0
+}
+
+GetWindowIdentity(hwnd) {
+  winTitle := "ahk_id " hwnd
+
+  try {
+    return {
+      pid: WinGetPID(winTitle),
+      processName: WinGetProcessName(winTitle),
+      class: WinGetClass(winTitle)
+    }
+  }
+
+  return 0
+}
+
+IsTrackedWindow(hwnd, state) {
+  try storedIdentity := state.identity
+  catch
+    return true
+
+  currentIdentity := GetWindowIdentity(hwnd)
+  if !IsObject(currentIdentity)
+    return false
+
+  return currentIdentity.pid = storedIdentity.pid
+    && currentIdentity.processName = storedIdentity.processName
+    && currentIdentity.class = storedIdentity.class
 }
 
 ApplyBorderlessWindow(hwnd, state) {
@@ -136,11 +174,31 @@ NotifyWindowError(message, error) {
 RestoreAll(*) {
   global borderlessStates
   for hwnd, state in borderlessStates.Clone() {
-    if WinExist("ahk_id " hwnd) && !RestoreWindow(hwnd, state) {
+    if WinExist("ahk_id " hwnd) && IsTrackedWindow(hwnd, state) && !RestoreWindow(hwnd, state) {
       continue
     }
     borderlessStates.Delete(hwnd)
   }
+}
+
+HandleWindowDestroyed(hook, event, hwnd, idObject, idChild, eventThread, eventTime) {
+  global borderlessStates
+
+  if idObject != 0 || idChild != 0
+    return
+
+  if borderlessStates.Has(hwnd)
+    borderlessStates.Delete(hwnd)
+}
+
+CleanupWindowDestroyHook(*) {
+  global windowDestroyHook, windowDestroyCallback
+
+  if windowDestroyHook
+    DllCall("user32\UnhookWinEvent", "ptr", windowDestroyHook)
+
+  if windowDestroyCallback
+    CallbackFree(windowDestroyCallback)
 }
 
 RestoreWindow(hwnd, state, showError := true) {
