@@ -131,6 +131,9 @@ ToggleBorderless(*) {
   if !hwnd
     return
 
+  if !IsSupportedTargetWindow(hwnd)
+    return
+
   if borderlessStates.Has(hwnd) {
     if !IsTrackedWindow(hwnd, borderlessStates[hwnd]) {
       borderlessStates.Delete(hwnd)
@@ -148,6 +151,29 @@ ToggleBorderless(*) {
   if ApplyBorderlessWindow(hwnd, state) {
     borderlessStates[hwnd] := state
   }
+}
+
+IsSupportedTargetWindow(hwnd) {
+  global optionsGui
+
+  if IsObject(optionsGui) && hwnd = optionsGui.Hwnd
+    return false
+
+  if !DllCall("user32\IsWindowVisible", "ptr", hwnd)
+    return false
+
+  try className := WinGetClass("ahk_id " hwnd)
+  catch
+    return false
+
+  blockedClasses := Map(
+    "Progman", true,
+    "WorkerW", true,
+    "Shell_TrayWnd", true,
+    "Shell_SecondaryTrayWnd", true
+  )
+
+  return !blockedClasses.Has(className)
 }
 
 CaptureWindowState(hwnd) {
