@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { execFileSync } from "child_process";
 
 const toolsDir = path.resolve(".tools");
@@ -8,22 +9,25 @@ const force = process.argv.includes("--force");
 
 const tools = [
   {
-    name: "AutoHotkey v2",
+    name: "AutoHotkey v2 2.0.26",
     outputName: "AutoHotkey64.exe",
-    source: "https://www.autohotkey.com/download/ahk-v2.zip",
+    source: "https://www.autohotkey.com/download/2.0/AutoHotkey_2.0.26.zip",
+    sha256: "43522aa3122a57784ac5db30abf85c2244475c36acd7796e2c993355f9e926ae",
     match: (file) => path.basename(file).toLowerCase() === "autohotkey64.exe",
   },
   {
-    name: "Ahk2Exe",
+    name: "Ahk2Exe 1.1.37.02a2",
     outputName: "Ahk2Exe.exe",
-    source: () =>
-      githubLatestAsset("AutoHotkey", "Ahk2Exe", (asset) => /^Ahk2Exe.*\.zip$/i.test(asset.name)),
+    source:
+      "https://github.com/AutoHotkey/Ahk2Exe/releases/download/Ahk2Exe1.1.37.02a2/Ahk2Exe1.1.37.02a2.zip",
+    sha256: "c29b8c3a5124850d79fc9e66e2ca79677c377d7f31631ad3022ba159c5d9e3be",
     match: (file) => path.basename(file).toLowerCase() === "ahk2exe.exe",
   },
   {
-    name: "UPX",
+    name: "UPX 5.2.0",
     outputName: "Upx.exe",
-    source: () => githubLatestAsset("upx", "upx", (asset) => /win64.*\.zip$/i.test(asset.name)),
+    source: "https://github.com/upx/upx/releases/download/v5.2.0/upx-5.2.0-win64.zip",
+    sha256: "b471ebf1b7f20f4a89150264ed9a008a2a5bfd247f3c6d1184a75bb59ca08f5d",
     match: (file) => path.basename(file).toLowerCase() === "upx.exe",
   },
 ];
@@ -49,11 +53,11 @@ async function ensureTool(tool) {
 
   console.log(`Getting ${tool.name}...`);
 
-  const url = typeof tool.source === "function" ? await tool.source() : tool.source;
   const archivePath = path.join(cacheDir, `${tool.outputName}.zip`);
   const extractDir = path.join(cacheDir, `${path.basename(tool.outputName, ".exe")}-extract`);
 
-  await downloadFile(url, archivePath);
+  await downloadFile(tool.source, archivePath);
+  verifySha256(archivePath, tool.sha256);
   extractZip(archivePath, extractDir);
 
   const sourceExe = findFile(extractDir, tool.match);
@@ -63,32 +67,6 @@ async function ensureTool(tool) {
 
   fs.copyFileSync(sourceExe, outputPath);
   console.log(`OK  ${tool.outputName}`);
-}
-
-async function githubLatestAsset(owner, repo, predicate) {
-  const release = await fetchJson(`https://api.github.com/repos/${owner}/${repo}/releases/latest`);
-  const asset = release.assets.find(predicate);
-
-  if (!asset) {
-    throw new Error(`Could not find a matching release asset for ${owner}/${repo}`);
-  }
-
-  return asset.browser_download_url;
-}
-
-async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      "User-Agent": "borderless-toggle-build",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status}: ${url}`);
-  }
-
-  return response.json();
 }
 
 async function downloadFile(url, targetPath) {
@@ -107,6 +85,14 @@ async function downloadFile(url, targetPath) {
   fs.writeFileSync(tempPath, data);
 
   fs.renameSync(tempPath, targetPath);
+}
+
+function verifySha256(filePath, expectedHash) {
+  const hash = crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+
+  if (hash !== expectedHash) {
+    throw new Error(`Checksum mismatch for ${filePath}: expected ${expectedHash}, got ${hash}`);
+  }
 }
 
 function extractZip(archivePath, extractDir) {
