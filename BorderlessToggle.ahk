@@ -39,6 +39,7 @@ global isHotkeyRegistered := false
 global isSuspended := false
 global borderlessStates := Map()
 global currentTheme := GetWindowsTheme()
+SetMenuTheme(currentTheme.app)
 global optionsGui := 0
 global optionsControls := Map()
 ; EVENT_OBJECT_DESTROY lets us drop state when a tracked window closes.
@@ -59,6 +60,7 @@ AppMenu.Add()
 AppMenu.Add("Exit", (*) => ExitApp())
 AppMenu.Default := "Suspend"
 AppMenu.ClickCount := 1
+FlushMenuThemes()
 
 ; ── Startup ───────────────────────────────────────────────────────────
 OnExit(RestoreAll)
@@ -493,6 +495,31 @@ ApplyControlTheme(ctrl, themeName) {
   try DllCall("uxtheme\SetWindowTheme", "ptr", ctrl.Hwnd, "str", themeClass, "ptr", 0)
 }
 
+SetMenuTheme(themeName) {
+  ; PreferredAppMode affects Win32 popup menus, including the tray menu.
+  mode := themeName = "Dark" ? 2 : 3
+
+  try {
+    hModule := DllCall("kernel32\LoadLibrary", "str", "uxtheme.dll", "ptr")
+    setPreferredAppMode := DllCall("kernel32\GetProcAddress", "ptr", hModule, "ptr", 135, "ptr")
+    if setPreferredAppMode
+      DllCall(setPreferredAppMode, "int", mode)
+    if hModule
+      DllCall("kernel32\FreeLibrary", "ptr", hModule)
+  }
+}
+
+FlushMenuThemes() {
+  try {
+    hModule := DllCall("kernel32\LoadLibrary", "str", "uxtheme.dll", "ptr")
+    flushMenuThemes := DllCall("kernel32\GetProcAddress", "ptr", hModule, "ptr", 136, "ptr")
+    if flushMenuThemes
+      DllCall(flushMenuThemes)
+    if hModule
+      DllCall("kernel32\FreeLibrary", "ptr", hModule)
+  }
+}
+
 ApplyOptionsTheme(guiObj, themeName) {
   global optionsControls
   palette := GetThemePalette(themeName)
@@ -540,6 +567,11 @@ HandleThemeChanged() {
 
   if newTheme.system != currentTheme.system
     UpdateTray()
+
+  if newTheme.app != currentTheme.app {
+    SetMenuTheme(newTheme.app)
+    FlushMenuThemes()
+  }
 
   currentTheme := newTheme
 
