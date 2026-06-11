@@ -32,8 +32,8 @@ global APPDATA_SETTINGS_DIR := A_AppData "\BorderlessToggle"
 global APPDATA_SETTINGS_FILE := APPDATA_SETTINGS_DIR "\settings.ini"
 global SETTINGS_FILE := ResolveSettingsFile()
 global ICONS_DIR := A_ScriptDir "\icons"
-; Default hotkey: CTRL+ALT+F11
-global DEFAULT_HOTKEY := "^!F11"
+; Default hotkey: CTRL+SHIFT+F11
+global DEFAULT_HOTKEY := "^+F11"
 
 ; ── State ─────────────────────────────────────────────────────────────
 global currentHotkey := ReadSavedHotkey()
