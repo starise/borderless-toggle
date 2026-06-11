@@ -25,14 +25,13 @@ global APP_VERSION := "__APP_VERSION__"
 global AUTHOR_NAME := "Andrea Brandi"
 global AUTHOR_URL := "https://andreabrandi.com"
 global REPO_URL := "https://github.com/starise/borderless-toggle"
-global SETTINGS_DIR := A_AppData "\BorderlessToggle"
-global SETTINGS_FILE := SETTINGS_DIR "\settings.ini"
-global LEGACY_SETTINGS_FILE := A_ScriptDir "\settings.ini"
+global PORTABLE_SETTINGS_FILE := A_ScriptDir "\settings.ini"
+global APPDATA_SETTINGS_DIR := A_AppData "\BorderlessToggle"
+global APPDATA_SETTINGS_FILE := APPDATA_SETTINGS_DIR "\settings.ini"
+global SETTINGS_FILE := ResolveSettingsFile()
 global ICONS_DIR := A_ScriptDir "\icons"
 ; Default hotkey: CTRL+ALT+F11
 global DEFAULT_HOTKEY := "^!F11"
-
-EnsureSettingsFile()
 
 ; ── State ─────────────────────────────────────────────────────────────
 global currentHotkey := ReadSavedHotkey()
@@ -79,13 +78,27 @@ RegisterHotkey(hk) {
       APP_NAME " – Error", "Icon! T5")
 }
 
-EnsureSettingsFile() {
-  global SETTINGS_DIR, SETTINGS_FILE, LEGACY_SETTINGS_FILE
+ResolveSettingsFile() {
+  global PORTABLE_SETTINGS_FILE, APPDATA_SETTINGS_FILE
 
-  try DirCreate(SETTINGS_DIR)
+  if FileExist(PORTABLE_SETTINGS_FILE) || CanWriteFileInScriptDir()
+    return PORTABLE_SETTINGS_FILE
 
-  if !FileExist(SETTINGS_FILE) && FileExist(LEGACY_SETTINGS_FILE)
-    try FileCopy(LEGACY_SETTINGS_FILE, SETTINGS_FILE)
+  return APPDATA_SETTINGS_FILE
+}
+
+CanWriteFileInScriptDir() {
+  testFile := A_ScriptDir "\.borderless-toggle-write-test"
+
+  try {
+    FileAppend("", testFile)
+    FileDelete(testFile)
+    return true
+  } catch {
+    try FileDelete(testFile)
+  }
+
+  return false
 }
 
 ReadSavedHotkey() {
@@ -97,9 +110,11 @@ ReadSavedHotkey() {
 }
 
 WriteSavedHotkey(hk) {
-  global SETTINGS_DIR, SETTINGS_FILE
+  global APPDATA_SETTINGS_DIR, APPDATA_SETTINGS_FILE, SETTINGS_FILE
 
-  try DirCreate(SETTINGS_DIR)
+  if SETTINGS_FILE = APPDATA_SETTINGS_FILE
+    try DirCreate(APPDATA_SETTINGS_DIR)
+
   IniWrite(hk, SETTINGS_FILE, "Settings", "Hotkey")
 }
 
