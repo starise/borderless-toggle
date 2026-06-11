@@ -25,13 +25,17 @@ global APP_VERSION := "__APP_VERSION__"
 global AUTHOR_NAME := "Andrea Brandi"
 global AUTHOR_URL := "https://andreabrandi.com"
 global REPO_URL := "https://github.com/starise/borderless-toggle"
-global SETTINGS_FILE := A_ScriptDir "\settings.ini"
+global SETTINGS_DIR := A_AppData "\BorderlessToggle"
+global SETTINGS_FILE := SETTINGS_DIR "\settings.ini"
+global LEGACY_SETTINGS_FILE := A_ScriptDir "\settings.ini"
 global ICONS_DIR := A_ScriptDir "\icons"
 ; Default hotkey: CTRL+ALT+F11
 global DEFAULT_HOTKEY := "^!F11"
 
+EnsureSettingsFile()
+
 ; ── State ─────────────────────────────────────────────────────────────
-global currentHotkey := IniRead(SETTINGS_FILE, "Settings", "Hotkey", DEFAULT_HOTKEY)
+global currentHotkey := ReadSavedHotkey()
 global isSuspended := false
 global borderlessStates := Map()
 global currentTheme := GetWindowsTheme()
@@ -73,6 +77,30 @@ RegisterHotkey(hk) {
   catch as e
     MsgBox("Could not register shortcut '" hk "'`n" e.Message,
       APP_NAME " – Error", "Icon! T5")
+}
+
+EnsureSettingsFile() {
+  global SETTINGS_DIR, SETTINGS_FILE, LEGACY_SETTINGS_FILE
+
+  try DirCreate(SETTINGS_DIR)
+
+  if !FileExist(SETTINGS_FILE) && FileExist(LEGACY_SETTINGS_FILE)
+    try FileCopy(LEGACY_SETTINGS_FILE, SETTINGS_FILE)
+}
+
+ReadSavedHotkey() {
+  global SETTINGS_FILE, DEFAULT_HOTKEY
+
+  try return IniRead(SETTINGS_FILE, "Settings", "Hotkey", DEFAULT_HOTKEY)
+  catch
+    return DEFAULT_HOTKEY
+}
+
+WriteSavedHotkey(hk) {
+  global SETTINGS_DIR, SETTINGS_FILE
+
+  try DirCreate(SETTINGS_DIR)
+  IniWrite(hk, SETTINGS_FILE, "Settings", "Hotkey")
 }
 
 ToggleBorderless(*) {
@@ -422,7 +450,7 @@ HandleThemeChanged() {
 ; ══════════════════════════════════════════════════════════════════════
 
 OpenOptions(*) {
-  global currentHotkey, isSuspended, SETTINGS_FILE
+  global currentHotkey, isSuspended
   global APP_NAME, APP_VERSION, AUTHOR_NAME, AUTHOR_URL, REPO_URL, AppMenu
   global optionsGui, optionsControls
 
@@ -480,7 +508,7 @@ OpenOptions(*) {
 
   ; ── Save & close ──────────────────────────────────────────────────
   SaveAndClose(*) {
-    global currentHotkey, isSuspended, SETTINGS_FILE, AppMenu
+    global currentHotkey, isSuspended, AppMenu
     newHk := hkCtrl.Value
 
     if currentHotkey != ""
@@ -489,7 +517,7 @@ OpenOptions(*) {
     if newHk = "" {
       currentHotkey := ""
       isSuspended := false
-      IniWrite("", SETTINGS_FILE, "Settings", "Hotkey")
+      WriteSavedHotkey("")
       try AppMenu.Rename("Resume", "Suspend")
       AppMenu.Default := "Suspend"
       UpdateTray()
@@ -500,7 +528,7 @@ OpenOptions(*) {
     try {
       Hotkey(newHk, ToggleBorderless, isSuspended ? "Off" : "On")
       currentHotkey := newHk
-      IniWrite(newHk, SETTINGS_FILE, "Settings", "Hotkey")
+      WriteSavedHotkey(newHk)
       UpdateTray()
       DestroyOptions()
     } catch as e {
