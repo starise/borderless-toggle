@@ -310,20 +310,29 @@ GetWindowMonitorBounds(hwnd) {
 ; ══════════════════════════════════════════════════════════════════════
 
 ToggleSuspend(*) {
-  global isSuspended, isHotkeyRegistered, currentHotkey, AppMenu
+  global isSuspended, isHotkeyRegistered, currentHotkey
   if currentHotkey = "" || !isHotkeyRegistered
     return
   isSuspended := !isSuspended
   if isSuspended {
     try Hotkey(currentHotkey, "Off")
-    AppMenu.Rename("Suspend", "Resume")
-    AppMenu.Default := "Resume"
   } else {
     try Hotkey(currentHotkey, "On")
-    AppMenu.Rename("Resume", "Suspend")
+  }
+  UpdateSuspendMenu()
+  UpdateTray()
+}
+
+UpdateSuspendMenu() {
+  global isSuspended, AppMenu
+
+  if isSuspended {
+    try AppMenu.Rename("Suspend", "Resume")
+    AppMenu.Default := "Resume"
+  } else {
+    try AppMenu.Rename("Resume", "Suspend")
     AppMenu.Default := "Suspend"
   }
-  UpdateTray()
 }
 
 ; ══════════════════════════════════════════════════════════════════════
@@ -533,36 +542,48 @@ OpenOptions(*) {
 
   ; ── Save & close ──────────────────────────────────────────────────
   SaveAndClose(*) {
-    global currentHotkey, isHotkeyRegistered, isSuspended, AppMenu
+    global currentHotkey, isHotkeyRegistered, isSuspended
     newHk := hkCtrl.Value
+    oldHk := currentHotkey
+    oldRegistered := isHotkeyRegistered
+    oldSuspended := isSuspended
 
-    if currentHotkey != ""
+    if oldHk != "" && oldRegistered
       try Hotkey(currentHotkey, "Off")
 
-    if newHk = "" {
-      currentHotkey := ""
-      isHotkeyRegistered := false
-      isSuspended := false
-      WriteSavedHotkey("")
-      try AppMenu.Rename("Resume", "Suspend")
-      AppMenu.Default := "Suspend"
-      UpdateTray()
-      DestroyOptions()
-      return
-    }
-
     try {
+      if newHk = "" {
+        WriteSavedHotkey("")
+        currentHotkey := ""
+        isHotkeyRegistered := false
+        isSuspended := false
+        UpdateSuspendMenu()
+        UpdateTray()
+        DestroyOptions()
+        return
+      }
+
       Hotkey(newHk, ToggleBorderless, isSuspended ? "Off" : "On")
+      WriteSavedHotkey(newHk)
       currentHotkey := newHk
       isHotkeyRegistered := true
-      WriteSavedHotkey(newHk)
       UpdateTray()
       DestroyOptions()
     } catch as e {
-      MsgBox("Invalid shortcut or already in use by another program.`n`n" e.Message,
+      if newHk != ""
+        try Hotkey(newHk, "Off")
+
+      currentHotkey := oldHk
+      isHotkeyRegistered := oldRegistered
+      isSuspended := oldSuspended
+
+      if oldHk != "" && oldRegistered
+        try Hotkey(oldHk, ToggleBorderless, oldSuspended ? "Off" : "On")
+
+      UpdateSuspendMenu()
+      UpdateTray()
+      MsgBox("Could not save shortcut.`n`n" e.Message,
         "Error", "Icon! T6")
-      if currentHotkey != "" and !isSuspended
-        try Hotkey(currentHotkey, ToggleBorderless, "On")
     }
   }
 }
