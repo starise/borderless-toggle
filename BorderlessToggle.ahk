@@ -318,8 +318,9 @@ RestoreWindow(hwnd, state, showError := true) {
 }
 
 RefreshWindowFrame(hwnd) {
-  ; SWP_FRAMECHANGED asks Windows to recalculate non-client borders.
+  ; Apply pending style changes to the frame.
   static SWP_FRAMECHANGED := 0x20
+  ; Keep geometry, z-order and activation unchanged.
   static SWP_NOMOVE := 0x2
   static SWP_NOSIZE := 0x1
   static SWP_NOZORDER := 0x4
