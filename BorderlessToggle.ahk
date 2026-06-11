@@ -35,6 +35,7 @@ global DEFAULT_HOTKEY := "^!F11"
 
 ; ── State ─────────────────────────────────────────────────────────────
 global currentHotkey := ReadSavedHotkey()
+global isHotkeyRegistered := false
 global isSuspended := false
 global borderlessStates := Map()
 global currentTheme := GetWindowsTheme()
@@ -62,7 +63,7 @@ AppMenu.ClickCount := 1
 OnExit(RestoreAll)
 OnExit(CleanupWindowDestroyHook)
 OnMessage(0x001A, WM_SETTINGCHANGE)
-RegisterHotkey(currentHotkey)
+isHotkeyRegistered := RegisterHotkey(currentHotkey)
 UpdateTray()
 
 ; ══════════════════════════════════════════════════════════════════════
@@ -71,11 +72,17 @@ UpdateTray()
 
 RegisterHotkey(hk) {
   if hk = ""
-    return
-  try Hotkey(hk, ToggleBorderless, "On")
-  catch as e
+    return false
+
+  try {
+    Hotkey(hk, ToggleBorderless, "On")
+    return true
+  } catch as e {
     MsgBox("Could not register shortcut '" hk "'`n" e.Message,
       APP_NAME " – Error", "Icon! T5")
+  }
+
+  return false
 }
 
 ResolveSettingsFile() {
@@ -303,8 +310,8 @@ GetWindowMonitorBounds(hwnd) {
 ; ══════════════════════════════════════════════════════════════════════
 
 ToggleSuspend(*) {
-  global isSuspended, currentHotkey, AppMenu
-  if currentHotkey = ""
+  global isSuspended, isHotkeyRegistered, currentHotkey, AppMenu
+  if currentHotkey = "" || !isHotkeyRegistered
     return
   isSuspended := !isSuspended
   if isSuspended {
@@ -324,10 +331,13 @@ ToggleSuspend(*) {
 ; ══════════════════════════════════════════════════════════════════════
 
 UpdateTray() {
-  global currentHotkey, isSuspended, APP_NAME
+  global currentHotkey, isHotkeyRegistered, isSuspended, APP_NAME
   if currentHotkey = "" {
     SetTrayStateIcon("Inactive")
     A_IconTip := APP_NAME "`nInactive – no shortcut set"
+  } else if !isHotkeyRegistered {
+    SetTrayStateIcon("Inactive")
+    A_IconTip := APP_NAME "`nInactive – shortcut unavailable"
   } else if isSuspended {
     SetTrayStateIcon("Suspended")
     A_IconTip := APP_NAME "`nSuspended – click to resume"
@@ -523,7 +533,7 @@ OpenOptions(*) {
 
   ; ── Save & close ──────────────────────────────────────────────────
   SaveAndClose(*) {
-    global currentHotkey, isSuspended, AppMenu
+    global currentHotkey, isHotkeyRegistered, isSuspended, AppMenu
     newHk := hkCtrl.Value
 
     if currentHotkey != ""
@@ -531,6 +541,7 @@ OpenOptions(*) {
 
     if newHk = "" {
       currentHotkey := ""
+      isHotkeyRegistered := false
       isSuspended := false
       WriteSavedHotkey("")
       try AppMenu.Rename("Resume", "Suspend")
@@ -543,6 +554,7 @@ OpenOptions(*) {
     try {
       Hotkey(newHk, ToggleBorderless, isSuspended ? "Off" : "On")
       currentHotkey := newHk
+      isHotkeyRegistered := true
       WriteSavedHotkey(newHk)
       UpdateTray()
       DestroyOptions()
