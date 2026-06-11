@@ -187,6 +187,7 @@ CaptureWindowState(hwnd) {
       w: w,
       h: h,
       style: WinGetStyle(winTitle),
+      exStyle: WinGetExStyle(winTitle),
       minMax: WinGetMinMax(winTitle),
       identity: GetWindowIdentity(hwnd)
     }
@@ -231,6 +232,7 @@ ApplyBorderlessWindow(hwnd, state) {
   try {
     bounds := GetWindowMonitorBounds(hwnd)
     WinSetStyle("-0xC40000", winTitle)
+    WinSetExStyle("-0x20301", winTitle)
     RefreshWindowFrame(hwnd)
     WinMove(bounds.x, bounds.y, bounds.w, bounds.h, winTitle)
     return true
@@ -286,6 +288,7 @@ RestoreWindow(hwnd, state, showError := true) {
       WinRestore(winTitle)
 
     WinSetStyle(Format("0x{:X}", state.style), winTitle)
+    WinSetExStyle(Format("0x{:X}", state.exStyle), winTitle)
     RefreshWindowFrame(hwnd)
     WinMove(state.x, state.y, state.w, state.h, winTitle)
 
