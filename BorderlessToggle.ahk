@@ -155,6 +155,12 @@ ToggleBorderless(*) {
 
 IsSupportedTargetWindow(hwnd) {
   global optionsGui
+  static blockedClasses := Map(
+    "Progman", true,
+    "WorkerW", true,
+    "Shell_TrayWnd", true,
+    "Shell_SecondaryTrayWnd", true
+  )
 
   if IsObject(optionsGui) && hwnd = optionsGui.Hwnd
     return false
@@ -165,13 +171,6 @@ IsSupportedTargetWindow(hwnd) {
   try className := WinGetClass("ahk_id " hwnd)
   catch
     return false
-
-  blockedClasses := Map(
-    "Progman", true,
-    "WorkerW", true,
-    "Shell_TrayWnd", true,
-    "Shell_SecondaryTrayWnd", true
-  )
 
   return !blockedClasses.Has(className)
 }
@@ -227,12 +226,14 @@ IsTrackedWindow(hwnd, state) {
 }
 
 ApplyBorderlessWindow(hwnd, state) {
+  static BORDERLESS_STYLE_MASK := "-0xC40000"
+  static BORDERLESS_EX_STYLE_MASK := "-0x20301"
   winTitle := "ahk_id " hwnd
 
   try {
     bounds := GetWindowMonitorBounds(hwnd)
-    WinSetStyle("-0xC40000", winTitle)
-    WinSetExStyle("-0x20301", winTitle)
+    WinSetStyle(BORDERLESS_STYLE_MASK, winTitle)
+    WinSetExStyle(BORDERLESS_EX_STYLE_MASK, winTitle)
     RefreshWindowFrame(hwnd)
     WinMove(bounds.x, bounds.y, bounds.w, bounds.h, winTitle)
     return true
@@ -537,19 +538,17 @@ HandleThemeChanged() {
 ; ══════════════════════════════════════════════════════════════════════
 
 OpenOptions(*) {
-  global currentHotkey, isSuspended
-  global APP_NAME, APP_VERSION, AUTHOR_NAME, AUTHOR_URL, REPO_URL, AppMenu
+  global currentHotkey
+  global APP_NAME, APP_VERSION, AUTHOR_NAME, AUTHOR_URL, REPO_URL
   global optionsGui, optionsControls
 
   if WinExist(APP_NAME " – Options")
     return WinActivate(APP_NAME " – Options")
 
   theme := GetWindowsTheme().app
-  palette := GetThemePalette(theme)
 
   btGUI := Gui("+AlwaysOnTop +ToolWindow", APP_NAME " – Options")
   btGUI.SetFont("s9", "Segoe UI")
-  btGUI.BackColor := palette.background
   btGUI.MarginX := 16
   btGUI.MarginY := 14
   optionsGui := btGUI
@@ -602,7 +601,7 @@ OpenOptions(*) {
     oldSuspended := isSuspended
 
     if oldHk != "" && oldRegistered
-      try Hotkey(currentHotkey, "Off")
+      try Hotkey(oldHk, "Off")
 
     try {
       if newHk = "" {
