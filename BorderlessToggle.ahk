@@ -41,6 +41,7 @@ global borderlessStates := Map()
 global currentTheme := GetWindowsTheme()
 global optionsGui := 0
 global optionsControls := Map()
+; EVENT_OBJECT_DESTROY lets us drop state when a tracked window closes.
 global windowDestroyCallback := CallbackCreate(HandleWindowDestroyed, "", 7)
 global windowDestroyHook := DllCall("user32\SetWinEventHook",
   "uint", 0x8001, "uint", 0x8001, "ptr", 0, "ptr", windowDestroyCallback,
@@ -62,6 +63,7 @@ AppMenu.ClickCount := 1
 ; ── Startup ───────────────────────────────────────────────────────────
 OnExit(RestoreAll)
 OnExit(CleanupWindowDestroyHook)
+; WM_SETTINGCHANGE notifies us when Windows theme colors change.
 OnMessage(0x001A, WM_SETTINGCHANGE)
 isHotkeyRegistered := RegisterHotkey(currentHotkey)
 UpdateTray()
@@ -88,6 +90,7 @@ RegisterHotkey(hk) {
 ResolveSettingsFile() {
   global PORTABLE_SETTINGS_FILE, APPDATA_SETTINGS_FILE
 
+  ; Prefer portable settings, but fall back when the app folder is read-only.
   if FileExist(PORTABLE_SETTINGS_FILE) || CanWriteFileInScriptDir()
     return PORTABLE_SETTINGS_FILE
 
@@ -155,6 +158,7 @@ ToggleBorderless(*) {
 
 IsSupportedTargetWindow(hwnd) {
   global optionsGui
+  ; Avoid toggling shell surfaces or the app's own options window.
   static blockedClasses := Map(
     "Progman", true,
     "WorkerW", true,
@@ -216,6 +220,7 @@ IsTrackedWindow(hwnd, state) {
   catch
     return true
 
+  ; Window handles can be reused after a window is closed.
   currentIdentity := GetWindowIdentity(hwnd)
   if !IsObject(currentIdentity)
     return false
@@ -226,6 +231,7 @@ IsTrackedWindow(hwnd, state) {
 }
 
 ApplyBorderlessWindow(hwnd, state) {
+  ; Remove caption/thick-frame and extended edge styles.
   static BORDERLESS_STYLE_MASK := "-0xC40000"
   static BORDERLESS_EX_STYLE_MASK := "-0x20301"
   winTitle := "ahk_id " hwnd
@@ -254,6 +260,7 @@ NotifyWindowError(message, error) {
 RestoreAll(*) {
   global borderlessStates
   for hwnd, state in borderlessStates.Clone() {
+    ; Keep state tracked if restore fails, so the user can retry.
     if WinExist("ahk_id " hwnd) && IsTrackedWindow(hwnd, state) && !RestoreWindow(hwnd, state) {
       continue
     }
@@ -264,6 +271,7 @@ RestoreAll(*) {
 HandleWindowDestroyed(hook, event, hwnd, idObject, idChild, eventThread, eventTime) {
   global borderlessStates
 
+  ; Only top-level window destroy events carry the tracked HWND.
   if idObject != 0 || idChild != 0
     return
 
@@ -306,6 +314,7 @@ RestoreWindow(hwnd, state, showError := true) {
 }
 
 RefreshWindowFrame(hwnd) {
+  ; SWP_FRAMECHANGED asks Windows to recalculate non-client borders.
   static SWP_FRAMECHANGED := 0x20
   static SWP_NOMOVE := 0x2
   static SWP_NOSIZE := 0x1
@@ -328,6 +337,7 @@ GetWindowMonitorBounds(hwnd) {
     centerX := x + (w // 2)
     centerY := y + (h // 2)
 
+    ; Use the monitor containing the window center.
     monitorCount := MonitorGetCount()
     Loop monitorCount {
       MonitorGet(A_Index, &left, &top, &right, &bottom)
@@ -409,6 +419,7 @@ SetTrayStateIcon(state) {
   global ICONS_DIR
   theme := GetWindowsTheme().system
   if A_IsCompiled {
+    ; Negative IDs load icon resources embedded by Ahk2Exe.
     iconIds := Map(
       "Active|Light", -201,
       "Inactive|Light", -202,
@@ -470,12 +481,14 @@ GetThemePalette(themeName) {
 ApplyWindowTheme(hwnd, themeName) {
   dark := themeName = "Dark" ? 1 : 0
 
+  ; DWMWA_USE_IMMERSIVE_DARK_MODE is 20, with 19 as older Windows fallback.
   if DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "int", 20, "int*", dark, "int", 4) != 0 {
     DllCall("dwmapi\DwmSetWindowAttribute", "ptr", hwnd, "int", 19, "int*", dark, "int", 4)
   }
 }
 
 ApplyControlTheme(ctrl, themeName) {
+  ; Native controls follow Explorer's themed common-control styles.
   themeClass := themeName = "Dark" ? "DarkMode_Explorer" : "Explorer"
   try DllCall("uxtheme\SetWindowTheme", "ptr", ctrl.Hwnd, "str", themeClass, "ptr", 0)
 }
@@ -517,6 +530,7 @@ WM_SETTINGCHANGE(wParam, lParam, msg, hwnd) {
       return
   }
 
+  ; Theme messages can arrive in bursts while Windows updates colors.
   SetTimer(HandleThemeChanged, -150)
 }
 
@@ -622,6 +636,7 @@ OpenOptions(*) {
       UpdateTray()
       DestroyOptions()
     } catch as e {
+      ; Restore the old shortcut if the new one cannot be registered or saved.
       if newHk != ""
         try Hotkey(newHk, "Off")
 
