@@ -231,6 +231,7 @@ ApplyBorderlessWindow(hwnd, state) {
   try {
     bounds := GetWindowMonitorBounds(hwnd)
     WinSetStyle("-0xC40000", winTitle)
+    RefreshWindowFrame(hwnd)
     WinMove(bounds.x, bounds.y, bounds.w, bounds.h, winTitle)
     return true
   } catch as e {
@@ -285,6 +286,7 @@ RestoreWindow(hwnd, state, showError := true) {
       WinRestore(winTitle)
 
     WinSetStyle(Format("0x{:X}", state.style), winTitle)
+    RefreshWindowFrame(hwnd)
     WinMove(state.x, state.y, state.w, state.h, winTitle)
 
     if state.minMax = 1
@@ -297,6 +299,23 @@ RestoreWindow(hwnd, state, showError := true) {
   }
 
   return false
+}
+
+RefreshWindowFrame(hwnd) {
+  static SWP_FRAMECHANGED := 0x20
+  static SWP_NOMOVE := 0x2
+  static SWP_NOSIZE := 0x1
+  static SWP_NOZORDER := 0x4
+  static SWP_NOACTIVATE := 0x10
+
+  DllCall("user32\SetWindowPos",
+    "ptr", hwnd,
+    "ptr", 0,
+    "int", 0,
+    "int", 0,
+    "int", 0,
+    "int", 0,
+    "uint", SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
 }
 
 GetWindowMonitorBounds(hwnd) {
