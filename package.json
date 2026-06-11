@@ -16,8 +16,8 @@
   },
   "devDependencies": {
     "icon-gen": "^5.0.0",
-    "prettier": "3.8.3",
-    "sharp": "^0.34.5",
+    "prettier": "3.8.4",
+    "sharp": "^0.35.1",
     "yazl": "^3.3.1"
   },
   "volta": {
