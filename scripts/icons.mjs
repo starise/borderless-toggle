@@ -7,6 +7,28 @@ import icongen from "icon-gen";
 const srcDir = path.resolve("images");
 const cacheDir = path.resolve(".cache/icons");
 const outDir = path.resolve("icons");
+const icoSizes = [16, 24, 32, 48, 64, 128, 256];
+
+async function generatePngSet(inputPath, outputDir) {
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  for (const size of icoSizes) {
+    const outputPath = path.join(outputDir, `${size}.png`);
+
+    if (fs.existsSync(outputPath)) continue;
+
+    await sharp(inputPath)
+      .resize(size, size, {
+        fit: "contain",
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+      })
+      .toFile(outputPath);
+  }
+}
 
 function hashFile(filePath) {
   const data = fs.readFileSync(filePath);
@@ -15,10 +37,12 @@ function hashFile(filePath) {
 
 async function normalizeImage(inputPath, outputPath) {
   await sharp(inputPath)
+    .ensureAlpha()
     .resize(256, 256, {
       fit: "contain",
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
+    .toColorspace("srgb")
     .png({
       compressionLevel: 9,
       adaptiveFiltering: true,
@@ -58,7 +82,9 @@ async function main() {
         console.log(`→ Cache hit ${file}`);
       }
 
-      await icongen(cachedPng, outDir, {
+      const pngSetDir = path.join(cacheDir, `${name}.${hash}`);
+      await generatePngSet(cachedPng, pngSetDir);
+      await icongen(pngSetDir, outDir, {
         report: false,
         ico: {
           name,
